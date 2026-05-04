@@ -206,6 +206,13 @@ hardware_interface::return_type DiffDriveArduinoHardware::read(
 
   comms_.read_encoder_values(wheel_l_.enc, wheel_r_.enc);
 
+  // ADD THIS DEBUG LOG
+
+  RCLCPP_INFO(rclcpp::get_logger("DiffDriveArduinoHardware"), 
+
+    "Raw encoder values - Left: %d, Right: %d", wheel_l_.enc, wheel_r_.enc);
+
+  
   double delta_seconds = period.seconds();
 
   double pos_prev = wheel_l_.pos;

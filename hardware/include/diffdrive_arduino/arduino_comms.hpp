@@ -87,6 +87,7 @@ public:
   void read_encoder_values(int &val_1, int &val_2)
   {
     std::string response = send_msg("e\r");
+    std::cerr << "Raw response: '" << response << "'" << std::endl;
 
     std::string delimiter = " ";
     size_t del_pos = response.find(delimiter);
@@ -95,6 +96,8 @@ public:
 
     val_1 = std::atoi(token_1.c_str());
     val_2 = std::atoi(token_2.c_str());
+
+    std::cerr << "Parsed values: val_1=" << val_1 << " val_2=" << val_2 << std::endl;
   }
   void set_motor_values(int val_1, int val_2)
   {
