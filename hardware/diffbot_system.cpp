@@ -22,6 +22,7 @@
 
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "sensor_msgs/msg/imu.hpp" // Required for IMU messages
 
 namespace diffdrive_arduino
 {
@@ -59,6 +60,8 @@ hardware_interface::CallbackReturn DiffDriveArduinoHardware::on_init(
   wheel_l_.setup(cfg_.left_wheel_name, cfg_.enc_counts_per_rev);
   wheel_r_.setup(cfg_.right_wheel_name, cfg_.enc_counts_per_rev);
 
+  node_ = std::make_shared<rclcpp::Node>("imu_publisher_internal");
+  imu_pub_ = node_->create_publisher<sensor_msgs::msg::Imu>("/imu/data_raw", 10);
 
   for (const hardware_interface::ComponentInfo & joint : info_.joints)
   {
@@ -125,6 +128,21 @@ std::vector<hardware_interface::StateInterface> DiffDriveArduinoHardware::export
     wheel_r_.name, hardware_interface::HW_IF_POSITION, &wheel_r_.pos));
   state_interfaces.emplace_back(hardware_interface::StateInterface(
     wheel_r_.name, hardware_interface::HW_IF_VELOCITY, &wheel_r_.vel));
+
+    // IMU Sensor State Interfaces
+  // The sensor name "imu_sensor" MUST match your XACRO exactly
+  state_interfaces.emplace_back(hardware_interface::StateInterface("imu_sensor", "orientation.x", &imu_orient_x_));
+  state_interfaces.emplace_back(hardware_interface::StateInterface("imu_sensor", "orientation.y", &imu_orient_y_));
+  state_interfaces.emplace_back(hardware_interface::StateInterface("imu_sensor", "orientation.z", &imu_orient_z_));
+  state_interfaces.emplace_back(hardware_interface::StateInterface("imu_sensor", "orientation.w", &imu_orient_w_));
+
+  state_interfaces.emplace_back(hardware_interface::StateInterface("imu_sensor", "angular_velocity.x", &imu_ang_vel_x_));
+  state_interfaces.emplace_back(hardware_interface::StateInterface("imu_sensor", "angular_velocity.y", &imu_ang_vel_y_));
+  state_interfaces.emplace_back(hardware_interface::StateInterface("imu_sensor", "angular_velocity.z", &imu_ang_vel_z_));
+
+  state_interfaces.emplace_back(hardware_interface::StateInterface("imu_sensor", "linear_acceleration.x", &imu_lin_acc_x_));
+  state_interfaces.emplace_back(hardware_interface::StateInterface("imu_sensor", "linear_acceleration.y", &imu_lin_acc_y_));
+  state_interfaces.emplace_back(hardware_interface::StateInterface("imu_sensor", "linear_acceleration.z", &imu_lin_acc_z_));
 
   return state_interfaces;
 }
@@ -205,6 +223,31 @@ hardware_interface::return_type DiffDriveArduinoHardware::read(
   }
 
   comms_.read_encoder_values(wheel_l_.enc, wheel_r_.enc);
+
+  double ax, ay, az, gx, gy, gz;
+  comms_.read_imu_values(ax, ay, az, gx, gy, gz);
+
+  // 3. Publish IMU Data
+  auto imu_msg = sensor_msgs::msg::Imu();
+  imu_msg.header.stamp = node_->get_clock()->now();
+  imu_msg.header.frame_id = "imu_link";
+
+  // Assign raw data (Ensure Arduino sends m/s^2 and rad/s)
+  imu_msg.linear_acceleration.x = ax;
+  imu_msg.linear_acceleration.y = ay;
+  imu_msg.linear_acceleration.z = az;
+  imu_msg.angular_velocity.x = gx;
+  imu_msg.angular_velocity.y = gy;
+  imu_msg.angular_velocity.z = gz;
+  
+  // Orientation is handled by the Madgwick filter node later, 
+  // so we provide a default identity quaternion here.
+  imu_orient_x_ = 0.0;
+  imu_orient_y_ = 0.0;
+  imu_orient_z_ = 0.0;
+  imu_orient_w_ = 1.0;
+
+  imu_pub_->publish(imu_msg);
 
   // ADD THIS DEBUG LOG
 

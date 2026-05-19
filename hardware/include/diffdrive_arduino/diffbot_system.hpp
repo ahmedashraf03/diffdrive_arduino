@@ -31,6 +31,10 @@
 #include "rclcpp_lifecycle/state.hpp"
 #include "diffdrive_arduino/visibility_control.h"
 
+#include "rclcpp/rclcpp.hpp"
+#include "rclcpp/publisher.hpp"
+#include "sensor_msgs/msg/imu.hpp"
+
 #include "diffdrive_arduino/arduino_comms.hpp"
 #include "diffdrive_arduino/wheel.hpp"
 
@@ -94,6 +98,13 @@ public:
     const rclcpp::Time & time, const rclcpp::Duration & period) override;
 
 private:
+
+    double imu_orient_x_, imu_orient_y_, imu_orient_z_, imu_orient_w_;
+    double imu_ang_vel_x_, imu_ang_vel_y_, imu_ang_vel_z_;
+    double imu_lin_acc_x_, imu_lin_acc_y_, imu_lin_acc_z_;
+
+  rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub_;
+  std::shared_ptr<rclcpp::Node> node_;
 
   ArduinoComms comms_;
   Config cfg_;

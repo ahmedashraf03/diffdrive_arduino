@@ -87,7 +87,7 @@ public:
   void read_encoder_values(int &val_1, int &val_2)
   {
     std::string response = send_msg("e\r");
-    std::cerr << "Raw response: '" << response << "'" << std::endl;
+    // std::cerr << "Raw response: '" << response << "'" << std::endl;
 
     std::string delimiter = " ";
     size_t del_pos = response.find(delimiter);
@@ -97,7 +97,7 @@ public:
     val_1 = std::atoi(token_1.c_str());
     val_2 = std::atoi(token_2.c_str());
 
-    std::cerr << "Parsed values: val_1=" << val_1 << " val_2=" << val_2 << std::endl;
+    // std::cerr << "Parsed values: val_1=" << val_1 << " val_2=" << val_2 << std::endl;
   }
   void set_motor_values(int val_1, int val_2)
   {
@@ -111,6 +111,44 @@ public:
     std::stringstream ss;
     ss << "u " << k_p << ":" << k_d << ":" << k_i << ":" << k_o << "\r";
     send_msg(ss.str());
+  }
+
+  void read_imu_values(double &ax, double &ay, double &az, double &gx, double &gy, double &gz)
+  {
+      // Initialize to zero so we don't get garbage values if it fails
+      ax = ay = az = gx = gy = gz = 0.0;
+
+      std::string response = send_msg("i\r");
+      
+
+      if (response.empty()) {
+        std::cerr << "IMU ERROR: Empty response from Arduino!" << std::endl;
+        return;
+    }
+
+      // Create a stream from the response
+      std::stringstream ss(response);
+      std::string val;
+      std::vector<double> results;
+
+      // Split by comma
+      while(std::getline(ss, val, ',')) {
+          try {
+              if (!val.empty()) {
+                results.push_back(std::stod(val));
+              }
+          } catch (...) {
+              results.push_back(0.0);
+          }
+      }
+
+      if (results.size() >= 6) {
+          ax = results[0]; ay = results[1]; az = results[2];
+          gx = results[3]; gy = results[4]; gz = results[5];
+      } else {
+        std::cerr << "IMU ERROR: Expected 6 values, got " << results.size() 
+                  << " | Raw string: " << response << std::endl;
+        }
   }
 
 private:
